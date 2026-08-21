@@ -166,7 +166,7 @@ FrameRate=60 # FPS</textarea>
     <div id="error" class="error"></div>
 
     <div class="aliases">
-      <strong>Flexible parser:</strong> order does not matter. Common aliases are accepted, for example:
+      <strong>Flexible parser:</strong> order does not matter. Plain text and Markdown tables are both accepted. Common aliases include:
       <br>HActive / HACT / H_ACTIVE / HorizontalActive / HDisplay / HDISP
       <br>HTotal / H_TOTAL / HorizontalTotal
       <br>HSW / HSyncWidth / HSWIDTH / HSyncPulseWidth
@@ -178,6 +178,7 @@ FrameRate=60 # FPS</textarea>
     <div class="note">
       The parser ignores comments after <code>#</code>, <code>//</code>, or <code>;</code>.
       Separators such as <code>=</code>, <code>:</code>, or whitespace are accepted.
+      Markdown rows such as <code>| HActive | 1920 |</code> are also supported.
     </div>
   </div>
 </section>
@@ -336,7 +337,7 @@ const aliasGroups = {
   VFP:["vfp","vfrontporch","v_front_porch","verticalfrontporch","vertical_front_porch","vfront"],
   VBP:["vbp","vbackporch","v_back_porch","verticalbackporch","vertical_back_porch","vback"],
   VSPol:["vspol","vsyncpol","v_sync_pol","vsyncpolarity","v_sync_polarity","vpol","vpolarity"],
-  FrameRate:["framerate","frame_rate","fps","refreshrate","refresh_rate","refresh","hz"]
+  FrameRate:["framerate","frame_rate","frame rate","frame rate fr","fr","fps","refreshrate","refresh_rate","refresh rate","refresh","hz"]
 };
 
 const aliasMap = {};
@@ -358,27 +359,71 @@ function stripComment(line){
   }
   return line.slice(0,cut).trim();
 }
+function resolveAlias(keyText){
+  const rawKey = normalizeKey(keyText);
+  const compactKey = rawKey.replace(/_/g,"");
+  let canonical = aliasMap[rawKey];
+  if(!canonical){
+    for(const [alias, can] of Object.entries(aliasMap)){
+      if(alias.replace(/_/g,"") === compactKey){
+        canonical = can;
+        break;
+      }
+    }
+  }
+  return canonical || null;
+}
+
 function parseTiming(text){
   const obj = {};
   const seen = {};
+
   for(const raw of text.split(/\r?\n/)){
+    const original = raw.trim();
+    if(!original) continue;
+
+    // Markdown table:
+    // | HActive | 1920 |
+    // | Frame rate FR | 60 |
+    if(original.startsWith("|")){
+      const cells = original
+        .split("|")
+        .slice(1,-1)
+        .map(x => x.trim());
+
+      if(cells.length >= 2){
+        const keyCell = cells[0];
+        const valueCell = cells[1];
+
+        // Skip Markdown separator rows such as | ----- | ---- |
+        if(/^:?-{3,}:?$/.test(keyCell) || /^:?-{3,}:?$/.test(valueCell)){
+          continue;
+        }
+
+        const canonical = resolveAlias(keyCell);
+        const vm = valueCell.match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/);
+
+        if(canonical && vm){
+          obj[canonical] = Number(vm[0]);
+          seen[canonical] = keyCell;
+          continue;
+        }
+      }
+    }
+
     const line = stripComment(raw);
     if(!line) continue;
 
     let m = line.match(/^\s*([A-Za-z][A-Za-z0-9_\-\.\s]*?)\s*(?:=|:)\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))/);
+
     if(!m){
-      m = line.match(/^\s*([A-Za-z][A-Za-z0-9_\-\.]*)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))/);
+      // Also accept "Frame rate FR 60" and other multi-word aliases.
+      m = line.match(/^\s*(.+?)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/);
     }
+
     if(!m) continue;
 
-    const rawKey = normalizeKey(m[1]);
-    const compactKey = rawKey.replace(/_/g,"");
-    let canonical = aliasMap[rawKey];
-    if(!canonical){
-      for(const [alias, can] of Object.entries(aliasMap)){
-        if(alias.replace(/_/g,"") === compactKey){ canonical = can; break; }
-      }
-    }
+    const canonical = resolveAlias(m[1]);
     if(!canonical) continue;
 
     obj[canonical] = Number(m[2]);
@@ -386,7 +431,10 @@ function parseTiming(text){
   }
 
   const missing = required.filter(k => !(k in obj) || !Number.isFinite(obj[k]));
-  if(missing.length) throw new Error("Missing or unrecognized timing fields: " + missing.join(", "));
+  if(missing.length){
+    throw new Error("Missing or unrecognized timing fields: " + missing.join(", "));
+  }
+
   obj.__seen = seen;
   return obj;
 }
