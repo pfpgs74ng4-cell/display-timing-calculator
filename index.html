@@ -1,0 +1,676 @@
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Display Timing Calculator</title>
+<style>
+:root{
+  --bg:#0d1117;--panel:#161b22;--panel2:#0f141a;--line:#30363d;
+  --text:#f0f6fc;--muted:#8b949e;--blue:#58a6ff;--green:#3fb950;
+  --yellow:#d29922;--red:#f85149;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.wrap{width:min(1260px,calc(100% - 32px));margin:0 auto}
+header{border-bottom:1px solid var(--line);padding:22px 0 18px}
+h1{font-size:26px;margin:0 0 6px}
+.subtitle{color:var(--muted);font-size:14px}
+main{padding:28px 0 70px}
+.grid{
+  display:grid;grid-template-columns:minmax(390px,.82fr) minmax(520px,1.18fr);
+  gap:20px;align-items:start
+}
+.panel{
+  border:1px solid var(--line);background:var(--panel);border-radius:10px;
+  overflow:hidden
+}
+.panel-title{
+  padding:12px 15px;border-bottom:1px solid var(--line);
+  font-weight:600;font-size:14px
+}
+.panel-body{padding:15px}
+textarea{
+  width:100%;min-height:360px;resize:vertical;background:#0d1117;
+  border:1px solid var(--line);border-radius:7px;color:var(--text);
+  padding:14px;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;
+  outline:none
+}
+textarea:focus,input:focus,select:focus{border-color:var(--blue)}
+.controls{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
+  margin-top:14px
+}
+.field label{
+  display:block;color:var(--muted);font-size:12px;margin:0 0 5px
+}
+input,select{
+  width:100%;height:38px;background:#0d1117;color:var(--text);
+  border:1px solid var(--line);border-radius:6px;padding:0 10px
+}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+button{
+  border:1px solid var(--line);background:#21262d;color:var(--text);
+  border-radius:6px;padding:9px 14px;cursor:pointer;font-weight:600
+}
+button.primary{background:#238636;border-color:#2ea043}
+button.blue{background:#1f6feb;border-color:#388bfd}
+button:hover{filter:brightness(1.08)}
+.error{
+  display:none;margin-top:12px;padding:10px 12px;border:1px solid #6e2b2b;
+  background:#2c1518;color:#ffb3b3;border-radius:6px;font-size:13px
+}
+.summary{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px
+}
+.metric{
+  border:1px solid var(--line);background:var(--panel2);padding:12px;border-radius:7px
+}
+.metric .name{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.metric .value{font-size:20px;font-weight:700;margin-top:5px}
+.metric .small{font-size:12px;color:var(--muted);margin-top:3px}
+.section{
+  margin-top:18px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);
+  overflow:hidden
+}
+.section-head{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:10px 12px;border-bottom:1px solid var(--line)
+}
+.section-head h2{font-size:15px;margin:0}
+.inline-control{
+  display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px
+}
+.inline-control select,.inline-control input{
+  width:76px;height:32px;padding:0 8px
+}
+.section-body{padding:10px 12px 12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 7px;border-bottom:1px solid #252b33;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:500;width:42%}
+.note{color:var(--muted);font-size:12px;line-height:1.55;margin-top:8px}
+.codebox{
+  position:relative;background:#0d1117;border:1px solid var(--line);border-radius:7px;
+  padding:13px 46px 13px 13px;font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;
+  white-space:pre-wrap;word-break:break-word;color:#c9d1d9
+}
+.copy{
+  position:absolute;top:7px;right:7px;padding:5px 8px;font-size:11px
+}
+.aliases{
+  margin-top:14px;padding:10px 12px;border:1px dashed var(--line);border-radius:7px;
+  color:var(--muted);font-size:12px;line-height:1.55
+}
+.good{color:var(--green)} .warn{color:var(--yellow)}
+footer{color:var(--muted);font-size:12px;padding:22px 0;border-top:1px solid var(--line)}
+@media(max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:540px){
+  .controls,.summary{grid-template-columns:1fr}
+  .section-head{align-items:flex-start;flex-direction:column}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Display Timing Calculator</h1>
+    <div class="subtitle">Flexible timing parser + PCLK / CSI / DSI / DP calculations + Weston modeline + Markdown report export.</div>
+  </div>
+</header>
+
+<main class="wrap">
+<div class="grid">
+
+<section class="panel">
+  <div class="panel-title">Input Timing</div>
+  <div class="panel-body">
+<textarea id="timing">HActive=1920
+HTotal=2036
+HSW=16       # HSync pulse width
+HFP=96       # HSync front porch
+HBP=4        # HSync back porch
+HSPol=0      # HSync polarity (0 or 1)
+VActive=720
+VTotal=745
+VSW=3        # VSync pulse width
+VFP=15       # VSync front porch
+VBP=7        # VSync back porch
+VSPol=0      # VSync polarity (0 or 1)
+FrameRate=60 # FPS</textarea>
+
+    <div class="controls">
+      <div class="field">
+        <label>Bits per pixel (BPP)</label>
+        <input id="bpp" type="number" min="1" step="1" value="24">
+      </div>
+      <div class="field">
+        <label>Transport basis</label>
+        <select id="basis">
+          <option value="active">Active pixels only</option>
+          <option value="timing" selected>Full timing (incl. blanking)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="calc">Calculate</button>
+      <button id="reset">Load Example</button>
+      <button class="blue" id="exportMd">Export Markdown Report</button>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <div class="aliases">
+      <strong>Flexible parser:</strong> order does not matter. Common aliases are accepted, for example:
+      <br>HActive / HACT / H_ACTIVE / HorizontalActive / HDisplay / HDISP
+      <br>HTotal / H_TOTAL / HorizontalTotal
+      <br>HSW / HSyncWidth / HSWIDTH / HSyncPulseWidth
+      <br>HFP / HFrontPorch / HorizontalFrontPorch
+      <br>HBP / HBackPorch / HorizontalBackPorch
+      <br>and the equivalent V* names, plus FPS / FrameRate / RefreshRate.
+    </div>
+
+    <div class="note">
+      The parser ignores comments after <code>#</code>, <code>//</code>, or <code>;</code>.
+      Separators such as <code>=</code>, <code>:</code>, or whitespace are accepted.
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-title">Calculated Results</div>
+  <div class="panel-body">
+
+    <div class="summary">
+      <div class="metric"><div class="name">Pixel Clock</div><div id="pclk" class="value">—</div><div class="small">HTotal × VTotal × FPS</div></div>
+      <div class="metric"><div class="name">Active Pixel Rate</div><div id="activeRate" class="value">—</div><div class="small">HActive × VActive × FPS</div></div>
+      <div class="metric"><div class="name">Video Payload</div><div id="payload" class="value">—</div><div class="small">selected basis × BPP</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Timing</h2></div>
+      <div class="section-body">
+        <table>
+          <tr><th>Horizontal</th><td id="hTiming">—</td></tr>
+          <tr><th>Vertical</th><td id="vTiming">—</td></tr>
+          <tr><th>Calculated refresh</th><td id="refresh">—</td></tr>
+          <tr><th>Horizontal frequency</th><td id="hfreq">—</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>CSI D-PHY</h2>
+        <div class="inline-control"><span>Lanes</span><input id="dphyLanes" type="number" min="1" max="8" step="1" value="4"></div>
+      </div>
+      <div class="section-body">
+        <table>
+          <tr><th>Required aggregate data rate</th><td id="dphyAgg">—</td></tr>
+          <tr><th>Per-lane data rate</th><td id="dphyLane">—</td></tr>
+          <tr><th>HS DDR clock frequency</th><td id="dphyClock">—</td></tr>
+          <tr><th>Byte clock / lane</th><td id="dphyByte">—</td></tr>
+        </table>
+        <div class="note">Ideal payload calculation only; packet/header/ECC overhead is not added.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>CSI C-PHY</h2>
+        <div class="inline-control"><span>Trios</span><input id="cphyTrios" type="number" min="1" max="8" step="1" value="3"></div>
+      </div>
+      <div class="section-body">
+        <table>
+          <tr><th>Required aggregate data rate</th><td id="cphyAgg">—</td></tr>
+          <tr><th>Per-trio effective bit rate</th><td id="cphyTrio">—</td></tr>
+          <tr><th>Symbol frequency / trio</th><td id="cphySymbol">—</td></tr>
+        </table>
+        <div class="note">Uses 16 bits per 7 symbols ≈ 2.2857 bits/symbol/trio.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>MIPI DSI D-PHY</h2>
+        <div class="inline-control"><span>Lanes</span><input id="dsiLanes" type="number" min="1" max="8" step="1" value="4"></div>
+      </div>
+      <div class="section-body">
+        <table>
+          <tr><th>Required aggregate data rate</th><td id="dsiAgg">—</td></tr>
+          <tr><th>Per-lane data rate</th><td id="dsiLane">—</td></tr>
+          <tr><th>HS DDR clock frequency</th><td id="dsiClock">—</td></tr>
+          <tr><th>Byte clock / lane</th><td id="dsiByte">—</td></tr>
+        </table>
+        <div class="note">Ideal RGB payload estimate. Actual DSI bandwidth depends on packetization and controller behavior.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>DisplayPort</h2>
+        <div class="inline-control">
+          <span>Lanes</span>
+          <select id="dpLanes"><option>1</option><option>2</option><option selected>4</option></select>
+        </div>
+      </div>
+      <div class="section-body">
+        <table>
+          <tr><th>Uncompressed video payload</th><td id="dpPayload">—</td></tr>
+          <tr><th>Selected lane count</th><td id="dpLaneCount">—</td></tr>
+          <tr><th>Minimum legacy link rate</th><td id="dpLegacy">—</td></tr>
+          <tr><th>Minimum UHBR link rate</th><td id="dpUhbr">—</td></tr>
+        </table>
+        <div class="note">
+          Legacy RBR/HBR/HBR2/HBR3 uses 8b/10b coding. UHBR uses 128b/132b coding.
+          This is a bandwidth-fit estimate without DSC.
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Weston / DRM Modeline</h2></div>
+      <div class="section-body">
+        <table>
+          <tr><th>dotclock</th><td id="westonDot">—</td></tr>
+          <tr><th>hdisp</th><td id="wHdisp">—</td></tr>
+          <tr><th>hsyncstart</th><td id="wHsStart">—</td></tr>
+          <tr><th>hsyncend</th><td id="wHsEnd">—</td></tr>
+          <tr><th>htotal</th><td id="wHtotal">—</td></tr>
+          <tr><th>vdisp</th><td id="wVdisp">—</td></tr>
+          <tr><th>vsyncstart</th><td id="wVsStart">—</td></tr>
+          <tr><th>vsyncend</th><td id="wVsEnd">—</td></tr>
+          <tr><th>vtotal</th><td id="wVtotal">—</td></tr>
+          <tr><th>hflag</th><td id="wHflag">—</td></tr>
+          <tr><th>vflag</th><td id="wVflag">—</td></tr>
+        </table>
+        <div style="margin-top:12px" class="codebox" id="westonLine">—<button class="copy" data-copy="westonLine">Copy</button></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Normalized Timing</h2></div>
+      <div class="section-body">
+        <div class="codebox" id="normalized">—<button class="copy" data-copy="normalized">Copy</button></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</div>
+</main>
+
+<footer><div class="wrap">Single-file calculator · No server required</div></footer>
+
+<script>
+const example = `HActive=1920
+HTotal=2036
+HSW=16
+HFP=96
+HBP=4
+HSPol=0
+VActive=720
+VTotal=745
+VSW=3
+VFP=15
+VBP=7
+VSPol=0
+FrameRate=60`;
+
+const aliasGroups = {
+  HActive:["hactive","hact","h_active","horizontalactive","horizontal_active","hdisplay","hdisp","xactive","xres","width"],
+  HTotal:["htotal","h_total","horizontaltotal","horizontal_total","htot"],
+  HSW:["hsw","hsyncwidth","h_sync_width","hswidth","hsyncpulsewidth","h_sync_pulse_width","hsync","hsw_px"],
+  HFP:["hfp","hfrontporch","h_front_porch","horizontalfrontporch","horizontal_front_porch","hfront"],
+  HBP:["hbp","hbackporch","h_back_porch","horizontalbackporch","horizontal_back_porch","hback"],
+  HSPol:["hspol","hsyncpol","h_sync_pol","hsyncpolarity","h_sync_polarity","hpol","hpolarity"],
+  VActive:["vactive","vact","v_active","verticalactive","vertical_active","vdisplay","vdisp","yactive","yres","height"],
+  VTotal:["vtotal","v_total","verticaltotal","vertical_total","vtot"],
+  VSW:["vsw","vsyncwidth","v_sync_width","vswidth","vsyncpulsewidth","v_sync_pulse_width","vsync","vsw_lines"],
+  VFP:["vfp","vfrontporch","v_front_porch","verticalfrontporch","vertical_front_porch","vfront"],
+  VBP:["vbp","vbackporch","v_back_porch","verticalbackporch","vertical_back_porch","vback"],
+  VSPol:["vspol","vsyncpol","v_sync_pol","vsyncpolarity","v_sync_polarity","vpol","vpolarity"],
+  FrameRate:["framerate","frame_rate","fps","refreshrate","refresh_rate","refresh","hz"]
+};
+
+const aliasMap = {};
+for(const [canonical, aliases] of Object.entries(aliasGroups)){
+  aliasMap[canonical.toLowerCase()] = canonical;
+  for(const a of aliases) aliasMap[a.toLowerCase()] = canonical;
+}
+const required = Object.keys(aliasGroups);
+let lastResult = null;
+
+function normalizeKey(k){
+  return k.trim().toLowerCase().replace(/[\s\-\.]+/g,"_");
+}
+function stripComment(line){
+  let cut = line.length;
+  for(const token of ["#","//",";"]){
+    const i = line.indexOf(token);
+    if(i >= 0) cut = Math.min(cut,i);
+  }
+  return line.slice(0,cut).trim();
+}
+function parseTiming(text){
+  const obj = {};
+  const seen = {};
+  for(const raw of text.split(/\r?\n/)){
+    const line = stripComment(raw);
+    if(!line) continue;
+
+    let m = line.match(/^\s*([A-Za-z][A-Za-z0-9_\-\.\s]*?)\s*(?:=|:)\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))/);
+    if(!m){
+      m = line.match(/^\s*([A-Za-z][A-Za-z0-9_\-\.]*)\s+([+-]?(?:\d+(?:\.\d*)?|\.\d+))/);
+    }
+    if(!m) continue;
+
+    const rawKey = normalizeKey(m[1]);
+    const compactKey = rawKey.replace(/_/g,"");
+    let canonical = aliasMap[rawKey];
+    if(!canonical){
+      for(const [alias, can] of Object.entries(aliasMap)){
+        if(alias.replace(/_/g,"") === compactKey){ canonical = can; break; }
+      }
+    }
+    if(!canonical) continue;
+
+    obj[canonical] = Number(m[2]);
+    seen[canonical] = m[1].trim();
+  }
+
+  const missing = required.filter(k => !(k in obj) || !Number.isFinite(obj[k]));
+  if(missing.length) throw new Error("Missing or unrecognized timing fields: " + missing.join(", "));
+  obj.__seen = seen;
+  return obj;
+}
+
+function fmtHz(v){
+  if(!Number.isFinite(v)) return "—";
+  if(v >= 1e9) return (v/1e9).toFixed(3).replace(/\.?0+$/,"") + " GHz";
+  if(v >= 1e6) return (v/1e6).toFixed(3).replace(/\.?0+$/,"") + " MHz";
+  if(v >= 1e3) return (v/1e3).toFixed(3).replace(/\.?0+$/,"") + " kHz";
+  return v.toFixed(2) + " Hz";
+}
+function fmtRate(v){
+  if(v >= 1e9) return (v/1e9).toFixed(3).replace(/\.?0+$/,"") + " Gbps";
+  if(v >= 1e6) return (v/1e6).toFixed(3).replace(/\.?0+$/,"") + " Mbps";
+  if(v >= 1e3) return (v/1e3).toFixed(3).replace(/\.?0+$/,"") + " kbps";
+  return v.toFixed(2) + " bps";
+}
+function txt(id,v){ document.getElementById(id).textContent=v; }
+
+function pickDpLegacy(payload, lanes){
+  const rates=[["RBR",1.62e9],["HBR",2.7e9],["HBR2",5.4e9],["HBR3",8.1e9]];
+  for(const [name,raw] of rates){
+    const cap=raw*lanes*0.8;
+    if(cap>=payload) return `${name} · ${fmtRate(raw)} / lane · capacity ${fmtRate(cap)}`;
+  }
+  return `Not enough with ${lanes} lane(s), even HBR3`;
+}
+function pickDpUhbr(payload, lanes){
+  const rates=[["UHBR10",10e9],["UHBR13.5",13.5e9],["UHBR20",20e9]];
+  const eff=128/132;
+  for(const [name,raw] of rates){
+    const cap=raw*lanes*eff;
+    if(cap>=payload) return `${name} · ${fmtRate(raw)} / lane · capacity ${fmtRate(cap)}`;
+  }
+  return `Not enough with ${lanes} lane(s), even UHBR20`;
+}
+
+function calculate(){
+  const err=document.getElementById("error");
+  try{
+    const t=parseTiming(document.getElementById("timing").value);
+    const bpp=Number(document.getElementById("bpp").value);
+    const dphyLanes=Number(document.getElementById("dphyLanes").value);
+    const cphyTrios=Number(document.getElementById("cphyTrios").value);
+    const dsiLanes=Number(document.getElementById("dsiLanes").value);
+    const dpLanes=Number(document.getElementById("dpLanes").value);
+    const basis=document.getElementById("basis").value;
+
+    if([bpp,dphyLanes,cphyTrios,dsiLanes,dpLanes].some(x=>!Number.isFinite(x)||x<=0))
+      throw new Error("BPP and lane/trio counts must be greater than zero.");
+
+    const pclk=t.HTotal*t.VTotal*t.FrameRate;
+    const activePixelRate=t.HActive*t.VActive*t.FrameRate;
+    const basisPixelRate=basis==="timing"?pclk:activePixelRate;
+    const payload=basisPixelRate*bpp;
+    const refresh=pclk/t.HTotal/t.VTotal;
+    const hfreq=pclk/t.HTotal;
+
+    const dphyLaneRate=payload/dphyLanes;
+    const cphyPerTrio=payload/cphyTrios;
+    const cphySymbol=cphyPerTrio/(16/7);
+    const dsiLaneRate=payload/dsiLanes;
+
+    const hsStart=t.HActive+t.HFP;
+    const hsEnd=hsStart+t.HSW;
+    const vsStart=t.VActive+t.VFP;
+    const vsEnd=vsStart+t.VSW;
+    const hflag=t.HSPol?"+hsync":"-hsync";
+    const vflag=t.VSPol?"+vsync":"-vsync";
+    const dotclockKhz=Math.round(pclk/1000);
+    const weston=`mode=${dotclockKhz} ${t.HActive} ${hsStart} ${hsEnd} ${t.HTotal} ${t.VActive} ${vsStart} ${vsEnd} ${t.VTotal} ${hflag} ${vflag}`;
+
+    const normalized=`HActive=${t.HActive}
+HTotal=${t.HTotal}
+HSW=${t.HSW}
+HFP=${t.HFP}
+HBP=${t.HBP}
+HSPol=${t.HSPol}
+VActive=${t.VActive}
+VTotal=${t.VTotal}
+VSW=${t.VSW}
+VFP=${t.VFP}
+VBP=${t.VBP}
+VSPol=${t.VSPol}
+FrameRate=${t.FrameRate}`;
+
+    txt("pclk",fmtHz(pclk));
+    txt("activeRate",fmtHz(activePixelRate));
+    txt("payload",fmtRate(payload));
+    txt("hTiming",`${t.HActive} active + ${t.HFP} FP + ${t.HSW} sync + ${t.HBP} BP = ${t.HTotal} total`);
+    txt("vTiming",`${t.VActive} active + ${t.VFP} FP + ${t.VSW} sync + ${t.VBP} BP = ${t.VTotal} total`);
+    txt("refresh",refresh.toFixed(6).replace(/0+$/,"").replace(/\.$/,"")+" Hz");
+    txt("hfreq",fmtHz(hfreq));
+
+    txt("dphyAgg",fmtRate(payload));
+    txt("dphyLane",`${fmtRate(dphyLaneRate)} × ${dphyLanes}`);
+    txt("dphyClock",fmtHz(dphyLaneRate/2));
+    txt("dphyByte",fmtHz(dphyLaneRate/8));
+
+    txt("cphyAgg",fmtRate(payload));
+    txt("cphyTrio",`${fmtRate(cphyPerTrio)} × ${cphyTrios}`);
+    txt("cphySymbol",fmtHz(cphySymbol));
+
+    txt("dsiAgg",fmtRate(payload));
+    txt("dsiLane",`${fmtRate(dsiLaneRate)} × ${dsiLanes}`);
+    txt("dsiClock",fmtHz(dsiLaneRate/2));
+    txt("dsiByte",fmtHz(dsiLaneRate/8));
+
+    txt("dpPayload",fmtRate(payload));
+    txt("dpLaneCount",String(dpLanes));
+    txt("dpLegacy",pickDpLegacy(payload,dpLanes));
+    txt("dpUhbr",pickDpUhbr(payload,dpLanes));
+
+    txt("westonDot",dotclockKhz+" kHz");
+    txt("wHdisp",t.HActive); txt("wHsStart",hsStart); txt("wHsEnd",hsEnd); txt("wHtotal",t.HTotal);
+    txt("wVdisp",t.VActive); txt("wVsStart",vsStart); txt("wVsEnd",vsEnd); txt("wVtotal",t.VTotal);
+    txt("wHflag",hflag); txt("wVflag",vflag);
+    document.getElementById("westonLine").childNodes[0].nodeValue=weston;
+    document.getElementById("normalized").childNodes[0].nodeValue=normalized;
+
+    const hsum=t.HActive+t.HFP+t.HSW+t.HBP;
+    const vsum=t.VActive+t.VFP+t.VSW+t.VBP;
+    let warnings=[];
+    if(hsum!==t.HTotal) warnings.push(`Horizontal components sum to ${hsum}, but HTotal=${t.HTotal}.`);
+    if(vsum!==t.VTotal) warnings.push(`Vertical components sum to ${vsum}, but VTotal=${t.VTotal}.`);
+    if(warnings.length){
+      err.textContent=warnings.join(" ");
+      err.style.display="block";
+      err.style.borderColor="#6e5d20"; err.style.background="#2b2412"; err.style.color="#eacb72";
+    }else{
+      err.style.display="none";
+    }
+
+    lastResult={
+      t,bpp,basis,pclk,activePixelRate,payload,refresh,hfreq,
+      dphyLanes,dphyLaneRate,
+      cphyTrios,cphyPerTrio,cphySymbol,
+      dsiLanes,dsiLaneRate,
+      dpLanes,dpLegacy:pickDpLegacy(payload,dpLanes),dpUhbr:pickDpUhbr(payload,dpLanes),
+      dotclockKhz,hsStart,hsEnd,vsStart,vsEnd,hflag,vflag,weston,normalized,warnings
+    };
+
+  }catch(e){
+    lastResult=null;
+    err.textContent=e.message;
+    err.style.display="block";
+    err.style.borderColor="#6e2b2b"; err.style.background="#2c1518"; err.style.color="#ffb3b3";
+  }
+}
+
+function markdownReport(r){
+  const t=r.t;
+  return `# Display Timing Report
+
+## Input Timing
+
+| Parameter | Value |
+| --- | ---: |
+| HActive | ${t.HActive} |
+| HTotal | ${t.HTotal} |
+| HSync Width | ${t.HSW} |
+| H Front Porch | ${t.HFP} |
+| H Back Porch | ${t.HBP} |
+| HSync Polarity | ${t.HSPol} |
+| VActive | ${t.VActive} |
+| VTotal | ${t.VTotal} |
+| VSync Width | ${t.VSW} |
+| V Front Porch | ${t.VFP} |
+| V Back Porch | ${t.VBP} |
+| VSync Polarity | ${t.VSPol} |
+| Frame Rate | ${t.FrameRate} Hz |
+| Bits Per Pixel | ${r.bpp} |
+| Transport Basis | ${r.basis === "timing" ? "Full timing (including blanking)" : "Active pixels only"} |
+
+## Core Results
+
+| Item | Value |
+| --- | ---: |
+| Pixel Clock | ${fmtHz(r.pclk)} |
+| Active Pixel Rate | ${fmtHz(r.activePixelRate)} |
+| Video Payload | ${fmtRate(r.payload)} |
+| Horizontal Frequency | ${fmtHz(r.hfreq)} |
+| Refresh Rate | ${r.refresh.toFixed(6)} Hz |
+
+## CSI D-PHY
+
+| Item | Value |
+| --- | ---: |
+| Lanes | ${r.dphyLanes} |
+| Aggregate Data Rate | ${fmtRate(r.payload)} |
+| Per-Lane Data Rate | ${fmtRate(r.dphyLaneRate)} |
+| HS DDR Clock | ${fmtHz(r.dphyLaneRate/2)} |
+| Byte Clock / Lane | ${fmtHz(r.dphyLaneRate/8)} |
+
+## CSI C-PHY
+
+| Item | Value |
+| --- | ---: |
+| Trios | ${r.cphyTrios} |
+| Aggregate Data Rate | ${fmtRate(r.payload)} |
+| Per-Trio Effective Bit Rate | ${fmtRate(r.cphyPerTrio)} |
+| Symbol Frequency / Trio | ${fmtHz(r.cphySymbol)} |
+
+## MIPI DSI D-PHY
+
+| Item | Value |
+| --- | ---: |
+| Lanes | ${r.dsiLanes} |
+| Aggregate Data Rate | ${fmtRate(r.payload)} |
+| Per-Lane Data Rate | ${fmtRate(r.dsiLaneRate)} |
+| HS DDR Clock | ${fmtHz(r.dsiLaneRate/2)} |
+| Byte Clock / Lane | ${fmtHz(r.dsiLaneRate/8)} |
+
+## DisplayPort
+
+| Item | Value |
+| --- | --- |
+| Lanes | ${r.dpLanes} |
+| Uncompressed Video Payload | ${fmtRate(r.payload)} |
+| Minimum Legacy Link Rate | ${r.dpLegacy} |
+| Minimum UHBR Link Rate | ${r.dpUhbr} |
+
+## Weston / DRM Modeline
+
+| #mode= | dotclock | hdisp | hsyncstart | hsyncend | htotal | vdisp | vsyncstart | vsyncend | vtotal | hflag | vflag |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| mode | ${r.dotclockKhz} | ${t.HActive} | ${r.hsStart} | ${r.hsEnd} | ${t.HTotal} | ${t.VActive} | ${r.vsStart} | ${r.vsEnd} | ${t.VTotal} | ${r.hflag} | ${r.vflag} |
+
+\`\`\`text
+${r.weston}
+\`\`\`
+
+## Normalized Timing
+
+\`\`\`text
+${r.normalized}
+\`\`\`
+${r.warnings.length ? `\n## Warnings\n\n${r.warnings.map(x=>"- "+x).join("\n")}\n` : ""}
+`;
+}
+
+function exportMarkdown(){
+  calculate();
+  if(!lastResult) return;
+  const md=markdownReport(lastResult);
+  const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const t=lastResult.t;
+  a.href=url;
+  a.download=`display-timing-${t.HActive}x${t.VActive}-${t.FrameRate}Hz.md`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("calc").addEventListener("click",calculate);
+document.getElementById("reset").addEventListener("click",()=>{
+  document.getElementById("timing").value=example;
+  calculate();
+});
+document.getElementById("exportMd").addEventListener("click",exportMarkdown);
+
+for(const id of ["bpp","dphyLanes","cphyTrios","dsiLanes","dpLanes","basis"]){
+  document.getElementById(id).addEventListener("change",calculate);
+  document.getElementById(id).addEventListener("input",calculate);
+}
+document.getElementById("timing").addEventListener("input",()=>{
+  clearTimeout(window.__calcTimer);
+  window.__calcTimer=setTimeout(calculate,220);
+});
+document.querySelectorAll(".copy").forEach(btn=>{
+  btn.addEventListener("click",async()=>{
+    const el=document.getElementById(btn.dataset.copy);
+    const text=el.childNodes[0].nodeValue.trim();
+    try{
+      await navigator.clipboard.writeText(text);
+      const old=btn.textContent; btn.textContent="Copied";
+      setTimeout(()=>btn.textContent=old,900);
+    }catch{}
+  });
+});
+calculate();
+</script>
+</body>
+</html>
