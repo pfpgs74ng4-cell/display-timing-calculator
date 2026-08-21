@@ -1,3 +1,4 @@
+
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -504,8 +505,8 @@ function calculate(){
     const vsEnd=vsStart+t.VSW;
     const hflag=t.HSPol?"+hsync":"-hsync";
     const vflag=t.VSPol?"+vsync":"-vsync";
-    const dotclockKhz=Math.round(pclk/1000);
-    const weston=`mode=${dotclockKhz} ${t.HActive} ${hsStart} ${hsEnd} ${t.HTotal} ${t.VActive} ${vsStart} ${vsEnd} ${t.VTotal} ${hflag} ${vflag}`;
+    const dotclockMHz=pclk/1e6;
+    const weston=`mode=${dotclockMHz.toFixed(2)} ${t.HActive} ${hsStart} ${hsEnd} ${t.HTotal} ${t.VActive} ${vsStart} ${vsEnd} ${t.VTotal} ${hflag} ${vflag}`;
 
     const normalized=`HActive=${t.HActive}
 HTotal=${t.HTotal}
@@ -548,7 +549,7 @@ FrameRate=${t.FrameRate}`;
     txt("dpLegacy",pickDpLegacy(payload,dpLanes));
     txt("dpUhbr",pickDpUhbr(payload,dpLanes));
 
-    txt("westonDot",dotclockKhz+" kHz");
+    txt("westonDot",dotclockMHz.toFixed(2)+" MHz");
     txt("wHdisp",t.HActive); txt("wHsStart",hsStart); txt("wHsEnd",hsEnd); txt("wHtotal",t.HTotal);
     txt("wVdisp",t.VActive); txt("wVsStart",vsStart); txt("wVsEnd",vsEnd); txt("wVtotal",t.VTotal);
     txt("wHflag",hflag); txt("wVflag",vflag);
@@ -574,7 +575,7 @@ FrameRate=${t.FrameRate}`;
       cphyTrios,cphyPerTrio,cphySymbol,
       dsiLanes,dsiLaneRate,
       dpLanes,dpLegacy:pickDpLegacy(payload,dpLanes),dpUhbr:pickDpUhbr(payload,dpLanes),
-      dotclockKhz,hsStart,hsEnd,vsStart,vsEnd,hflag,vflag,weston,normalized,warnings
+      dotclockMHz,hsStart,hsEnd,vsStart,vsEnd,hflag,vflag,weston,normalized,warnings
     };
 
   }catch(e){
@@ -661,7 +662,7 @@ function markdownReport(r){
 
 | #mode= | dotclock | hdisp | hsyncstart | hsyncend | htotal | vdisp | vsyncstart | vsyncend | vtotal | hflag | vflag |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| mode | ${r.dotclockKhz} | ${t.HActive} | ${r.hsStart} | ${r.hsEnd} | ${t.HTotal} | ${t.VActive} | ${r.vsStart} | ${r.vsEnd} | ${t.VTotal} | ${r.hflag} | ${r.vflag} |
+| mode | ${r.dotclockMHz.toFixed(2)} | ${t.HActive} | ${r.hsStart} | ${r.hsEnd} | ${t.HTotal} | ${t.VActive} | ${r.vsStart} | ${r.vsEnd} | ${t.VTotal} | ${r.hflag} | ${r.vflag} |
 
 \`\`\`text
 ${r.weston}
